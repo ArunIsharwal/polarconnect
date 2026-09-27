@@ -418,50 +418,213 @@ import { auth } from "../../../../../auth";
 
 export const runtime = "nodejs";
 
+const CHAT_MODEL =
+  process.env.HF_CHAT_MODEL ||
+  "openai/gpt-oss-120b:fastest";
+
 const SUMMARY_MODEL =
   "facebook/bart-large-cnn";
 
-const MAX_TEXT_LENGTH = 24000;
-const CHUNK_SIZE = 2500;
+const MAX_PDF_TEXT = 40000;
+
+const BART_CHUNK_SIZE = 2500;
+
+const RETRIES = 3;
 
 PDFParse.setWorker(getPath());
 
-function splitIntoChunks(
+type SummaryResponse = {
+  success: boolean;
+  message: string;
+  documentId?: string;
+  aiStatus?: string;
+  aiSummary?: string;
+};
+
+function sleep(
+  milliseconds: number,
+) {
+  return new Promise((resolve) =>
+    setTimeout(
+      resolve,
+      milliseconds,
+    ),
+  );
+}
+
+function splitText(
   text: string,
   chunkSize: number,
 ): string[] {
   const chunks: string[] = [];
 
   for (
-    let start = 0;
-    start < text.length;
-    start += chunkSize
+    let index = 0;
+    index < text.length;
+    index += chunkSize
   ) {
     chunks.push(
-      text.slice(start, start + chunkSize),
+      text.slice(
+        index,
+        index + chunkSize,
+      ),
     );
   }
 
   return chunks;
 }
 
-async function summarizeText(
+async function runWithRetry<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  let lastError: unknown;
+
+  for (
+    let attempt = 1;
+    attempt <= RETRIES;
+    attempt++
+  ) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < RETRIES) {
+        await sleep(
+          attempt * 2500,
+        );
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(
+        "AI provider request failed.",
+      );
+}
+
+/* -------------------------------------------------------
+   PRIMARY AI SUMMARY
+   Uses GPT-OSS through Hugging Face Inference Providers.
+------------------------------------------------------- */
+
+async function generateWithChatModel(
   text: string,
   hf: InferenceClient,
 ): Promise<string> {
-  const result = await hf.summarization({
-    model: SUMMARY_MODEL,
-    inputs: text,
-  });
+  const result =
+    await runWithRetry(
+      () =>
+        hf.chatCompletion({
+          model: CHAT_MODEL,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a scientific document summarization system. " +
+                "Summarize only the information present in the supplied document text. " +
+                "Do not invent facts, numbers, findings, locations, methods, or conclusions. " +
+                "Preserve important scientific terminology and numerical findings. " +
+                "Return one clear professional paragraph followed by concise key points.",
+            },
+            {
+              role: "user",
+              content:
+                "Create a faithful scientific summary of this PDF text.\n\n" +
+                "Requirements:\n" +
+                "1. Identify the research purpose.\n" +
+                "2. Describe the main data or methods.\n" +
+                "3. State the important results or findings.\n" +
+                "4. Mention the main scientific significance.\n" +
+                "5. Do not add information that is not contained in the source.\n\n" +
+                "DOCUMENT TEXT:\n\n" +
+                text,
+            },
+          ],
+          max_tokens: 900,
+          temperature: 0.1,
+        }),
+    );
 
-  if (!result.summary_text) {
+  const content =
+    result.choices?.[0]
+      ?.message?.content;
+
+  const summary = String(
+    content ?? "",
+  )
+    .trim();
+
+  if (!summary) {
     throw new Error(
-      "Hugging Face returned an empty summary.",
+      "The primary AI model returned an empty summary.",
     );
   }
 
-  return result.summary_text.trim();
+  return summary;
 }
+
+/* -------------------------------------------------------
+   FALLBACK SUMMARIZER
+   Uses Hugging Face's documented summarization model.
+------------------------------------------------------- */
+
+async function generateWithBart(
+  text: string,
+  hf: InferenceClient,
+): Promise<string> {
+  const chunks =
+    splitText(
+      text,
+      BART_CHUNK_SIZE,
+    );
+
+  const summaries: string[] = [];
+
+  for (
+    const chunk of chunks
+  ) {
+    if (
+      chunk.trim().length < 100
+    ) {
+      continue;
+    }
+
+    const result =
+      await runWithRetry(
+        () =>
+          hf.summarization({
+            model:
+              SUMMARY_MODEL,
+            provider:
+              "hf-inference",
+            inputs: chunk,
+          }),
+      );
+
+    const summary =
+      result.summary_text?.trim();
+
+    if (summary) {
+      summaries.push(summary);
+    }
+  }
+
+  if (
+    summaries.length === 0
+  ) {
+    throw new Error(
+      "The fallback summarization model returned no summary.",
+    );
+  }
+
+  return summaries.join(" ");
+}
+
+/* -------------------------------------------------------
+   API ROUTE
+------------------------------------------------------- */
 
 export async function POST(
   request: Request,
@@ -469,9 +632,9 @@ export async function POST(
   let documentId = "";
 
   try {
-    // -----------------------------------------
-    // ADMIN AUTHENTICATION
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       ADMIN AUTH
+    --------------------------------------------------- */
 
     const session = await auth();
 
@@ -483,15 +646,16 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized",
-        },
+          message:
+            "Unauthorized. Please log in as administrator.",
+        } satisfies SummaryResponse,
         { status: 401 },
       );
     }
 
-    // -----------------------------------------
-    // HUGGING FACE TOKEN
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       HF TOKEN
+    --------------------------------------------------- */
 
     const hfToken =
       process.env.HF_TOKEN;
@@ -501,24 +665,24 @@ export async function POST(
         {
           success: false,
           message:
-            "HF_TOKEN is not configured.",
-        },
+            "HF_TOKEN is not configured in Vercel.",
+        } satisfies SummaryResponse,
         { status: 500 },
       );
     }
 
-    // -----------------------------------------
-    // HUGGING FACE CLIENT
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       HF CLIENT
+    --------------------------------------------------- */
 
-const hf =
-  new InferenceClient(
-    hfToken,
-  );
+    const hf =
+      new InferenceClient(
+        hfToken,
+      );
 
-    // -----------------------------------------
-    // REQUEST BODY
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       REQUEST
+    --------------------------------------------------- */
 
     const body =
       (await request.json()) as {
@@ -535,14 +699,14 @@ const hf =
           success: false,
           message:
             "documentId is required.",
-        },
+        } satisfies SummaryResponse,
         { status: 400 },
       );
     }
 
-    // -----------------------------------------
-    // DATABASE
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       DATABASE
+    --------------------------------------------------- */
 
     await connectDB();
 
@@ -557,22 +721,20 @@ const hf =
           success: false,
           message:
             "Document not found.",
-        },
+        } satisfies SummaryResponse,
         { status: 404 },
       );
     }
 
-    // -----------------------------------------
-    // VALIDATE FILE
-    // -----------------------------------------
-
-    if (!document.fileUrl) {
+    if (
+      !document.fileUrl
+    ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Document does not have a file URL.",
-        },
+            "This document has no Vercel Blob file URL.",
+        } satisfies SummaryResponse,
         { status: 400 },
       );
     }
@@ -586,24 +748,24 @@ const hf =
         {
           success: false,
           message:
-            "AI summary is currently available for PDF files only.",
-        },
+            "AI summary currently supports PDF documents only.",
+        } satisfies SummaryResponse,
         { status: 400 },
       );
     }
 
-    // -----------------------------------------
-    // MARK AS PROCESSING
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       MARK PROCESSING
+    --------------------------------------------------- */
 
     document.aiStatus =
       "PROCESSING";
 
     await document.save();
 
-    // -----------------------------------------
-    // DOWNLOAD PDF FROM VERCEL BLOB
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       DOWNLOAD PDF FROM VERCEL BLOB
+    --------------------------------------------------- */
 
     const pdfResponse =
       await fetch(
@@ -615,7 +777,7 @@ const hf =
 
     if (!pdfResponse.ok) {
       throw new Error(
-        `Could not download PDF from Vercel Blob. HTTP ${pdfResponse.status}`,
+        `Unable to download the PDF from Vercel Blob. HTTP ${pdfResponse.status}.`,
       );
     }
 
@@ -627,7 +789,7 @@ const hf =
       0
     ) {
       throw new Error(
-        "The PDF file is empty.",
+        "The stored PDF is empty.",
       );
     }
 
@@ -636,9 +798,9 @@ const hf =
         pdfArrayBuffer,
       );
 
-    // -----------------------------------------
-    // EXTRACT PDF TEXT
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       EXTRACT PDF TEXT
+    --------------------------------------------------- */
 
     const parser =
       new PDFParse({
@@ -664,108 +826,63 @@ const hf =
 
     if (!extractedText) {
       throw new Error(
-        "No readable text was found in the PDF.",
+        "No readable text could be extracted from this PDF.",
       );
     }
 
-    // -----------------------------------------
-    // LIMIT TEXT
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       LIMIT DOCUMENT SIZE
+    --------------------------------------------------- */
 
     extractedText =
       extractedText.slice(
         0,
-        MAX_TEXT_LENGTH,
+        MAX_PDF_TEXT,
       );
 
-    // -----------------------------------------
-    // SPLIT TEXT
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       PRIMARY MODEL
+    --------------------------------------------------- */
 
-    const chunks =
-      splitIntoChunks(
-        extractedText,
-        CHUNK_SIZE,
-      );
+    let finalSummary = "";
 
-    // -----------------------------------------
-    // GENERATE CHUNK SUMMARIES
-    // -----------------------------------------
-
-    const summaries: string[] =
-      [];
-
-    for (
-      const chunk of chunks
-    ) {
-      if (
-        chunk.trim().length < 100
-      ) {
-        continue;
-      }
-
-      const summary =
-        await summarizeText(
-          chunk,
+    try {
+      finalSummary =
+        await generateWithChatModel(
+          extractedText,
           hf,
         );
-
-      if (summary) {
-        summaries.push(summary);
-      }
-    }
-
-    if (
-      summaries.length === 0
-    ) {
-      throw new Error(
-        "No summary was generated.",
+    } catch (primaryError) {
+      console.error(
+        "Primary AI summarizer failed:",
+        primaryError,
       );
+
+      /* -----------------------------------------------
+         FALLBACK MODEL
+      ----------------------------------------------- */
+
+      finalSummary =
+        await generateWithBart(
+          extractedText,
+          hf,
+        );
     }
 
-    // -----------------------------------------
-    // COMBINE SUMMARIES
-    // -----------------------------------------
-
-    let finalSummary =
-      summaries
-        .join(" ")
+    finalSummary =
+      finalSummary
         .replace(/\s+/g, " ")
         .trim();
 
-    // -----------------------------------------
-    // OPTIONAL FINAL SUMMARY PASS
-    // -----------------------------------------
-
-    if (summaries.length > 1) {
-      const combinedSummary =
-        finalSummary.slice(
-          0,
-          CHUNK_SIZE,
-        );
-
-      try {
-        finalSummary =
-          await summarizeText(
-            combinedSummary,
-            hf,
-          );
-
-        finalSummary =
-          finalSummary
-            .replace(/\s+/g, " ")
-            .trim();
-      } catch (error) {
-        console.warn(
-          "Final summary pass failed. Using combined chunk summaries.",
-          error,
-        );
-      }
+    if (!finalSummary) {
+      throw new Error(
+        "AI returned an empty summary.",
+      );
     }
 
-    // -----------------------------------------
-    // SAVE AI SUMMARY
-    // -----------------------------------------
+    /* ---------------------------------------------------
+       SAVE RESULT
+    --------------------------------------------------- */
 
     document.aiSummary =
       finalSummary;
@@ -778,26 +895,25 @@ const hf =
 
     await document.save();
 
-    return NextResponse.json({
-      success: true,
-      message:
-        "AI summary generated successfully.",
-      documentId:
-        document._id.toString(),
-      aiStatus:
-        document.aiStatus,
-      aiSummary:
-        document.aiSummary,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message:
+          "AI summary generated successfully.",
+        documentId:
+          document._id.toString(),
+        aiStatus:
+          document.aiStatus,
+        aiSummary:
+          document.aiSummary,
+      } satisfies SummaryResponse,
+      { status: 200 },
+    );
   } catch (error) {
     console.error(
       "POST /api/ai/summarize error:",
       error,
     );
-
-    // -----------------------------------------
-    // MARK FAILED
-    // -----------------------------------------
 
     if (documentId) {
       try {
@@ -806,12 +922,13 @@ const hf =
         await DocumentModel.findByIdAndUpdate(
           documentId,
           {
-            aiStatus: "FAILED",
+            aiStatus:
+              "FAILED",
           },
         );
       } catch (statusError) {
         console.error(
-          "Failed to update AI status:",
+          "Could not update AI status:",
           statusError,
         );
       }
@@ -824,7 +941,7 @@ const hf =
           error instanceof Error
             ? error.message
             : "AI summary generation failed.",
-      },
+      } satisfies SummaryResponse,
       { status: 500 },
     );
   }
