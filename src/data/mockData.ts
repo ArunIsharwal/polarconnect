@@ -1,0 +1,88 @@
+import type { PolarDocument } from "@/types/document";
+
+export const repositoryItems: PolarDocument[] = [
+  {
+    id: "POL-001",
+    title: "Indian Antarctic Research Programme — Expedition Report",
+    description:
+      "Scientific observations, expedition activities and field notes from the Antarctic research programme.",
+    type: "REPORT",
+    region: "ANTARCTICA",
+    year: 2026,
+    format: "PDF",
+    status: "PUBLISHED",
+    author: "Polar Research Team",
+    organization: "NCPOR",
+    tags: ["Antarctica", "Expedition", "Climate"],
+  },
+  {
+    id: "POL-002",
+    title: "Southern Ocean Oceanographic Measurements",
+    description:
+      "Temperature, salinity and conductivity observations from Southern Ocean research activities.",
+    type: "DATASET",
+    region: "SOUTHERN OCEAN",
+    year: 2026,
+    format: "CSV",
+    status: "PUBLISHED",
+    author: "Ocean Science Division",
+    organization: "NCPOR",
+    tags: ["Ocean", "Temperature", "Salinity"],
+  },
+  {
+    id: "POL-003",
+    title: "Cryosphere Response and Polar Climate Variability",
+    description:
+      "Research covering changes in polar ice systems and associated climate variability.",
+    type: "PUBLICATION",
+    region: "ARCTIC",
+    year: 2025,
+    format: "PDF",
+    status: "REVIEW",
+    author: "Polar Climate Group",
+    organization: "Research Institute",
+    tags: ["Cryosphere", "Climate", "Arctic"],
+  },
+  {
+    id: "POL-004",
+    title: "Maitri Research Station — Field Media Archive",
+    description:
+      "Expedition photographs and scientific field footage from Maitri research operations.",
+    type: "MEDIA",
+    region: "MAITRI",
+    year: 2025,
+    format: "MEDIA",
+    status: "PUBLISHED",
+    author: "Expedition Media Unit",
+    organization: "NCPOR",
+    tags: ["Maitri", "Photography", "Expedition"],
+  },
+  {
+    id: "POL-005",
+    title: "Polar Atmospheric Observations",
+    description:
+      "Atmospheric chemistry and meteorological observations collected during polar field research.",
+    type: "REPORT",
+    region: "ANTARCTICA",
+    year: 2025,
+    format: "PDF",
+    status: "PROCESSING",
+    author: "Atmospheric Science Team",
+    organization: "NCPOR",
+    tags: ["Atmosphere", "Weather", "Antarctica"],
+  },
+  {
+    id: "POL-006",
+    title: "Sea Ice Thickness Survey",
+    description:
+      "Measurements and observations related to seasonal sea ice thickness.",
+    type: "DATASET",
+    region: "ARCTIC",
+    year: 2024,
+    format: "CSV",
+    status: "PUBLISHED",
+    author: "Cryosphere Team",
+    organization: "Polar Research Division",
+    tags: ["Sea Ice", "Arctic", "Ice"],
+  },
+];
