@@ -1,7 +1,270 @@
+// import { NextResponse } from "next/server";
+// import fs from "fs/promises";
+// import path from "path";
+// import crypto from "crypto";
+
+// import connectDB from "@/lib/mongodb";
+// import DocumentModel from "@/models/Document";
+
+// import { auth } from "../../../../auth";
+
+// const MAX_FILE_SIZE = 100 * 1024 * 1024;
+
+// const ALLOWED_EXTENSIONS = [
+//   ".pdf",
+//   ".csv",
+//   ".png",
+//   ".jpg",
+//   ".jpeg",
+//   ".mp4",
+//   ".mov",
+// ];
+
+// export async function POST(request: Request) {
+//   try {
+//     // -----------------------------------------
+//     // ADMIN AUTHENTICATION
+//     // -----------------------------------------
+
+//     const session = await auth();
+
+//     if (
+//       !session?.user?.email ||
+//       session.user.email !==
+//         process.env.ADMIN_EMAIL
+//     ) {
+//       return NextResponse.json(
+//         {
+//           success: false,
+//           message: "Unauthorized",
+//         },
+//         { status: 401 },
+//       );
+//     }
+
+//     // -----------------------------------------
+//     // DATABASE
+//     // -----------------------------------------
+
+//     await connectDB();
+
+//     // -----------------------------------------
+//     // FORM DATA
+//     // -----------------------------------------
+
+//     const formData =
+//       await request.formData();
+
+//     const file = formData.get("file");
+
+//     const title = String(
+//       formData.get("title") || "",
+//     ).trim();
+
+//     const contentType = String(
+//       formData.get("contentType") ||
+//         "REPORT",
+//     );
+
+//     const region = String(
+//       formData.get("region") ||
+//         "ANTARCTICA",
+//     );
+
+//     const yearValue = String(
+//       formData.get("year") || "",
+//     );
+
+//     const description = String(
+//       formData.get("description") || "",
+//     );
+
+//     const tagsValue = String(
+//       formData.get("tags") || "",
+//     );
+
+//     // -----------------------------------------
+//     // VALIDATION
+//     // -----------------------------------------
+
+//     if (!(file instanceof File)) {
+//       return NextResponse.json(
+//         {
+//           success: false,
+//           message: "No file was uploaded",
+//         },
+//         { status: 400 },
+//       );
+//     }
+
+//     if (!title) {
+//       return NextResponse.json(
+//         {
+//           success: false,
+//           message: "Title is required",
+//         },
+//         { status: 400 },
+//       );
+//     }
+
+//     if (file.size === 0) {
+//       return NextResponse.json(
+//         {
+//           success: false,
+//           message: "Uploaded file is empty",
+//         },
+//         { status: 400 },
+//       );
+//     }
+
+//     if (file.size > MAX_FILE_SIZE) {
+//       return NextResponse.json(
+//         {
+//           success: false,
+//           message:
+//             "File size must be 100 MB or less",
+//         },
+//         { status: 400 },
+//       );
+//     }
+
+//     const originalName = file.name;
+
+//     const extension = path
+//       .extname(originalName)
+//       .toLowerCase();
+
+//     if (
+//       !ALLOWED_EXTENSIONS.includes(
+//         extension,
+//       )
+//     ) {
+//       return NextResponse.json(
+//         {
+//           success: false,
+//           message: `File type ${extension} is not supported`,
+//         },
+//         { status: 400 },
+//       );
+//     }
+
+//     // -----------------------------------------
+//     // STORE FILE
+//     // -----------------------------------------
+
+//     const uniqueName = `${crypto.randomUUID()}${extension}`;
+
+//     const uploadDirectory =
+//       path.join(
+//         process.cwd(),
+//         "public",
+//         "documents",
+//       );
+
+//     await fs.mkdir(
+//       uploadDirectory,
+//       { recursive: true },
+//     );
+
+//     const filePath = path.join(
+//       uploadDirectory,
+//       uniqueName,
+//     );
+
+//     const arrayBuffer =
+//       await file.arrayBuffer();
+
+//     const buffer =
+//       Buffer.from(arrayBuffer);
+
+//     await fs.writeFile(
+//       filePath,
+//       buffer,
+//     );
+
+//     const fileUrl =
+//       `/documents/${uniqueName}`;
+
+//     // -----------------------------------------
+//     // METADATA
+//     // -----------------------------------------
+
+//     const tags = tagsValue
+//       .split(",")
+//       .map((tag) => tag.trim())
+//       .filter(Boolean);
+
+//     const year = yearValue
+//       ? Number(yearValue)
+//       : undefined;
+
+//     // -----------------------------------------
+//     // SAVE DOCUMENT
+//     // -----------------------------------------
+
+//     try {
+//       const document =
+//         await DocumentModel.create({
+//           title,
+//           contentType,
+//           region,
+//           year,
+//           description,
+//           tags,
+//           fileName: originalName,
+//           fileUrl,
+//           status: "PENDING",
+//         });
+
+//       return NextResponse.json(
+//         {
+//           success: true,
+//           message:
+//             "File uploaded successfully",
+//           document,
+//         },
+//         { status: 201 },
+//       );
+//     } catch (databaseError) {
+//       // Delete the uploaded file if MongoDB
+//       // creation fails.
+//       try {
+//         await fs.unlink(filePath);
+//       } catch (deleteError) {
+//         console.error(
+//           "Failed to remove orphaned file:",
+//           deleteError,
+//         );
+//       }
+
+//       throw databaseError;
+//     }
+//   } catch (error) {
+//     console.error(
+//       "POST /api/upload error:",
+//       error,
+//     );
+
+//     return NextResponse.json(
+//       {
+//         success: false,
+//         message: "Upload failed",
+//         error:
+//           error instanceof Error
+//             ? error.message
+//             : String(error),
+//       },
+//       { status: 500 },
+//     );
+//   }
+// }
+import {
+  handleUpload,
+  type HandleUploadBody,
+} from "@vercel/blob/client";
+
 import { NextResponse } from "next/server";
-import fs from "fs/promises";
 import path from "path";
-import crypto from "crypto";
 
 import connectDB from "@/lib/mongodb";
 import DocumentModel from "@/models/Document";
@@ -20,7 +283,147 @@ const ALLOWED_EXTENSIONS = [
   ".mov",
 ];
 
-export async function POST(request: Request) {
+const MIME_TYPES: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".csv": "text/csv",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+};
+
+const ALLOWED_CONTENT_TYPES = [
+  "application/pdf",
+  "text/csv",
+  "image/png",
+  "image/jpeg",
+  "video/mp4",
+  "video/quicktime",
+];
+
+type UploadMetadata = {
+  fileName: string;
+  title: string;
+  contentType: string;
+  region: string;
+  year?: number;
+  description: string;
+  tags: string[];
+};
+
+function parseClientPayload(
+  clientPayload: string | null | undefined,
+): UploadMetadata {
+  if (!clientPayload) {
+    throw new Error("Upload metadata is missing");
+  }
+
+  let value: unknown;
+
+  try {
+    value = JSON.parse(clientPayload);
+  } catch {
+    throw new Error("Upload metadata is invalid");
+  }
+
+  if (
+    typeof value !== "object" ||
+    value === null
+  ) {
+    throw new Error("Upload metadata is invalid");
+  }
+
+  const data =
+    value as Record<string, unknown>;
+
+  const fileName = String(
+    data.fileName ?? "",
+  ).trim();
+
+  const title = String(
+    data.title ?? "",
+  ).trim();
+
+  const contentType = String(
+    data.contentType ?? "",
+  ).trim();
+
+  const region = String(
+    data.region ?? "",
+  ).trim();
+
+  const description = String(
+    data.description ?? "",
+  ).trim();
+
+  const tags = Array.isArray(data.tags)
+    ? data.tags
+        .map((tag) => String(tag).trim())
+        .filter(Boolean)
+        .slice(0, 20)
+    : [];
+
+  const rawYear = data.year;
+
+  const year =
+    rawYear === undefined ||
+    rawYear === null ||
+    String(rawYear).trim() === ""
+      ? undefined
+      : Number(rawYear);
+
+  if (!fileName) {
+    throw new Error("File name is required");
+  }
+
+  if (!title) {
+    throw new Error("Title is required");
+  }
+
+  if (
+    !ALLOWED_CONTENT_TYPES.includes(
+      contentType,
+    )
+  ) {
+    throw new Error(
+      "Unsupported content type",
+    );
+  }
+
+  if (
+    year !== undefined &&
+    (!Number.isInteger(year) ||
+      year < 1900 ||
+      year > 2100)
+  ) {
+    throw new Error("Invalid year");
+  }
+
+  if (title.length > 200) {
+    throw new Error("Title is too long");
+  }
+
+  if (description.length > 5000) {
+    throw new Error(
+      "Description is too long",
+    );
+  }
+
+  return {
+    fileName,
+    title,
+    contentType,
+    region,
+    year,
+    description,
+    tags,
+  };
+}
+
+export async function POST(
+  request: Request,
+) {
   try {
     // -----------------------------------------
     // ADMIN AUTHENTICATION
@@ -43,202 +446,152 @@ export async function POST(request: Request) {
     }
 
     // -----------------------------------------
-    // DATABASE
+    // READ VERCEL BLOB CLIENT UPLOAD REQUEST
     // -----------------------------------------
 
-    await connectDB();
+    const body =
+      (await request.json()) as HandleUploadBody;
 
     // -----------------------------------------
-    // FORM DATA
+    // HANDLE VERCEL BLOB UPLOAD
     // -----------------------------------------
 
-    const formData =
-      await request.formData();
+    const jsonResponse =
+      await handleUpload({
+        body,
+        request,
 
-    const file = formData.get("file");
+        // ---------------------------------------
+        // GENERATE CLIENT UPLOAD TOKEN
+        // ---------------------------------------
 
-    const title = String(
-      formData.get("title") || "",
-    ).trim();
+        onBeforeGenerateToken: async (
+          pathname,
+          clientPayload,
+        ) => {
+          const metadata =
+            parseClientPayload(
+              clientPayload,
+            );
 
-    const contentType = String(
-      formData.get("contentType") ||
-        "REPORT",
-    );
+          const extension =
+            path
+              .extname(pathname)
+              .toLowerCase();
 
-    const region = String(
-      formData.get("region") ||
-        "ANTARCTICA",
-    );
+          if (
+            !ALLOWED_EXTENSIONS.includes(
+              extension,
+            )
+          ) {
+            throw new Error(
+              `File type ${extension} is not supported`,
+            );
+          }
 
-    const yearValue = String(
-      formData.get("year") || "",
-    );
+          const expectedMimeType =
+            MIME_TYPES[extension];
 
-    const description = String(
-      formData.get("description") || "",
-    );
+          if (
+            metadata.contentType !==
+            expectedMimeType
+          ) {
+            throw new Error(
+              "File content type does not match the file extension",
+            );
+          }
 
-    const tagsValue = String(
-      formData.get("tags") || "",
-    );
+          return {
+            allowedContentTypes: [
+              expectedMimeType,
+            ],
 
-    // -----------------------------------------
-    // VALIDATION
-    // -----------------------------------------
+            maximumSizeInBytes:
+              MAX_FILE_SIZE,
 
-    if (!(file instanceof File)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "No file was uploaded",
+            addRandomSuffix: false,
+
+            tokenPayload:
+              JSON.stringify(
+                metadata,
+              ),
+          };
         },
-        { status: 400 },
-      );
-    }
 
-    if (!title) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Title is required",
+        // ---------------------------------------
+        // AFTER VERCEL BLOB UPLOAD
+        // ---------------------------------------
+
+        onUploadCompleted: async ({
+          blob,
+          tokenPayload,
+        }) => {
+          try {
+            const metadata =
+              parseClientPayload(
+                tokenPayload,
+              );
+
+            await connectDB();
+
+            // Prevent duplicate MongoDB
+            // records if Vercel retries
+            // the completion callback.
+            const existing =
+              await DocumentModel.findOne({
+                fileUrl: blob.url,
+              });
+
+            if (existing) {
+              console.log(
+                "Document already exists:",
+                blob.url,
+              );
+
+              return;
+            }
+
+            // -----------------------------------
+            // SAVE DOCUMENT METADATA
+            // -----------------------------------
+
+            const document =
+              await DocumentModel.create({
+                title: metadata.title,
+                contentType:
+                  metadata.contentType,
+                region: metadata.region,
+                year: metadata.year,
+                description:
+                  metadata.description,
+                tags: metadata.tags,
+                fileName:
+                  metadata.fileName,
+                fileUrl: blob.url,
+                status: "PENDING",
+              });
+
+            console.log(
+              "Blob upload completed:",
+              {
+                id: document._id.toString(),
+                fileUrl: blob.url,
+              },
+            );
+          } catch (error) {
+            console.error(
+              "Failed to save uploaded document:",
+              error,
+            );
+
+            throw error;
+          }
         },
-        { status: 400 },
-      );
-    }
+      });
 
-    if (file.size === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Uploaded file is empty",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "File size must be 100 MB or less",
-        },
-        { status: 400 },
-      );
-    }
-
-    const originalName = file.name;
-
-    const extension = path
-      .extname(originalName)
-      .toLowerCase();
-
-    if (
-      !ALLOWED_EXTENSIONS.includes(
-        extension,
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `File type ${extension} is not supported`,
-        },
-        { status: 400 },
-      );
-    }
-
-    // -----------------------------------------
-    // STORE FILE
-    // -----------------------------------------
-
-    const uniqueName = `${crypto.randomUUID()}${extension}`;
-
-    const uploadDirectory =
-      path.join(
-        process.cwd(),
-        "public",
-        "documents",
-      );
-
-    await fs.mkdir(
-      uploadDirectory,
-      { recursive: true },
+    return NextResponse.json(
+      jsonResponse,
     );
-
-    const filePath = path.join(
-      uploadDirectory,
-      uniqueName,
-    );
-
-    const arrayBuffer =
-      await file.arrayBuffer();
-
-    const buffer =
-      Buffer.from(arrayBuffer);
-
-    await fs.writeFile(
-      filePath,
-      buffer,
-    );
-
-    const fileUrl =
-      `/documents/${uniqueName}`;
-
-    // -----------------------------------------
-    // METADATA
-    // -----------------------------------------
-
-    const tags = tagsValue
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-
-    const year = yearValue
-      ? Number(yearValue)
-      : undefined;
-
-    // -----------------------------------------
-    // SAVE DOCUMENT
-    // -----------------------------------------
-
-    try {
-      const document =
-        await DocumentModel.create({
-          title,
-          contentType,
-          region,
-          year,
-          description,
-          tags,
-          fileName: originalName,
-          fileUrl,
-          status: "PENDING",
-        });
-
-      return NextResponse.json(
-        {
-          success: true,
-          message:
-            "File uploaded successfully",
-          document,
-        },
-        { status: 201 },
-      );
-    } catch (databaseError) {
-      // Delete the uploaded file if MongoDB
-      // creation fails.
-      try {
-        await fs.unlink(filePath);
-      } catch (deleteError) {
-        console.error(
-          "Failed to remove orphaned file:",
-          deleteError,
-        );
-      }
-
-      throw databaseError;
-    }
   } catch (error) {
     console.error(
       "POST /api/upload error:",
@@ -248,13 +601,12 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Upload failed",
-        error:
+        message:
           error instanceof Error
             ? error.message
-            : String(error),
+            : "Upload failed",
       },
-      { status: 500 },
+      { status: 400 },
     );
   }
 }
