@@ -1,5 +1,5 @@
 import UploadPanel from "@/components/upload/UploadPanel";
-
+import AiProcessingButton from "@/components/admin/AiProcessingButton";
 export default function AdminDocumentsPage() {
   return (
     <div className="p-4 sm:p-6">
@@ -19,6 +19,7 @@ export default function AdminDocumentsPage() {
       </div>
 
       <UploadPanel />
+      <AiProcessingButton />
     </div>
   );
 }
