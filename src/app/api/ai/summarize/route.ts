@@ -407,6 +407,7 @@
 // }
 
 import { NextResponse } from "next/server";
+import { InferenceClient } from "@huggingface/inference";
 import { PDFParse } from "pdf-parse";
 import { getPath } from "pdf-parse/worker";
 
@@ -418,17 +419,12 @@ import { auth } from "../../../../../auth";
 export const runtime = "nodejs";
 
 const SUMMARY_MODEL =
-  "Falconsai/text_summarization";
+  "facebook/bart-large-cnn";
 
-const MAX_TEXT_LENGTH = 30000;
-const CHUNK_SIZE = 5000;
+const MAX_TEXT_LENGTH = 24000;
+const CHUNK_SIZE = 2500;
 
 PDFParse.setWorker(getPath());
-
-type SummarizationResponse = {
-  summary_text?: string;
-  error?: string;
-};
 
 function splitIntoChunks(
   text: string,
@@ -451,68 +447,20 @@ function splitIntoChunks(
 
 async function summarizeText(
   text: string,
-  token: string,
+  hf: InferenceClient,
 ): Promise<string> {
-  const response = await fetch(
-    `https://api-inference.huggingface.co/models/${SUMMARY_MODEL}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: text,
-        parameters: {
-          max_length: 220,
-          min_length: 60,
-          do_sample: false,
-          clean_up_tokenization_spaces: true,
-        },
-        options: {
-          wait_for_model: true,
-        },
-      }),
-    },
-  );
+  const result = await hf.summarization({
+    model: SUMMARY_MODEL,
+    inputs: text,
+  });
 
-  const data =
-    (await response.json()) as
-      | SummarizationResponse
-      | SummarizationResponse[];
-
-  if (!response.ok) {
-    const errorMessage =
-      Array.isArray(data)
-        ? data[0]?.error
-        : data.error;
-
-    throw new Error(
-      errorMessage ||
-        `Hugging Face request failed with status ${response.status}`,
-    );
-  }
-
-  if (Array.isArray(data)) {
-    const generated =
-      data[0]?.summary_text;
-
-    if (!generated) {
-      throw new Error(
-        "Hugging Face returned an empty summary.",
-      );
-    }
-
-    return generated.trim();
-  }
-
-  if (!data.summary_text) {
+  if (!result.summary_text) {
     throw new Error(
       "Hugging Face returned an empty summary.",
     );
   }
 
-  return data.summary_text.trim();
+  return result.summary_text.trim();
 }
 
 export async function POST(
@@ -542,7 +490,7 @@ export async function POST(
     }
 
     // -----------------------------------------
-    // HF TOKEN
+    // HUGGING FACE TOKEN
     // -----------------------------------------
 
     const hfToken =
@@ -558,6 +506,15 @@ export async function POST(
         { status: 500 },
       );
     }
+
+    // -----------------------------------------
+    // HUGGING FACE CLIENT
+    // -----------------------------------------
+
+const hf =
+  new InferenceClient(
+    hfToken,
+  );
 
     // -----------------------------------------
     // REQUEST BODY
@@ -605,6 +562,10 @@ export async function POST(
       );
     }
 
+    // -----------------------------------------
+    // VALIDATE FILE
+    // -----------------------------------------
+
     if (!document.fileUrl) {
       return NextResponse.json(
         {
@@ -632,7 +593,7 @@ export async function POST(
     }
 
     // -----------------------------------------
-    // MARK PROCESSING
+    // MARK AS PROCESSING
     // -----------------------------------------
 
     document.aiStatus =
@@ -641,7 +602,7 @@ export async function POST(
     await document.save();
 
     // -----------------------------------------
-    // FETCH PDF FROM VERCEL BLOB
+    // DOWNLOAD PDF FROM VERCEL BLOB
     // -----------------------------------------
 
     const pdfResponse =
@@ -654,7 +615,7 @@ export async function POST(
 
     if (!pdfResponse.ok) {
       throw new Error(
-        `Could not download PDF from Blob. HTTP ${pdfResponse.status}`,
+        `Could not download PDF from Vercel Blob. HTTP ${pdfResponse.status}`,
       );
     }
 
@@ -708,7 +669,7 @@ export async function POST(
     }
 
     // -----------------------------------------
-    // LIMIT SOURCE TEXT
+    // LIMIT TEXT
     // -----------------------------------------
 
     extractedText =
@@ -718,7 +679,7 @@ export async function POST(
       );
 
     // -----------------------------------------
-    // CHUNK PDF TEXT
+    // SPLIT TEXT
     // -----------------------------------------
 
     const chunks =
@@ -728,17 +689,17 @@ export async function POST(
       );
 
     // -----------------------------------------
-    // SUMMARIZE EACH CHUNK
+    // GENERATE CHUNK SUMMARIES
     // -----------------------------------------
 
-    const chunkSummaries: string[] =
+    const summaries: string[] =
       [];
 
     for (
       const chunk of chunks
     ) {
       if (
-        chunk.trim().length < 80
+        chunk.trim().length < 100
       ) {
         continue;
       }
@@ -746,40 +707,38 @@ export async function POST(
       const summary =
         await summarizeText(
           chunk,
-          hfToken,
+          hf,
         );
 
       if (summary) {
-        chunkSummaries.push(
-          summary,
-        );
+        summaries.push(summary);
       }
     }
 
     if (
-      chunkSummaries.length ===
-      0
+      summaries.length === 0
     ) {
       throw new Error(
-        "AI could not generate a summary from the extracted PDF text.",
+        "No summary was generated.",
       );
     }
 
     // -----------------------------------------
-    // FINAL SUMMARY
+    // COMBINE SUMMARIES
     // -----------------------------------------
 
     let finalSummary =
-      chunkSummaries.join(" ");
+      summaries
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-    // If multiple chunk summaries were
-    // produced, run one final summarization
-    // pass when the combined text is large
-    // enough to benefit from it.
-    if (
-      chunkSummaries.length > 1
-    ) {
-      const combined =
+    // -----------------------------------------
+    // OPTIONAL FINAL SUMMARY PASS
+    // -----------------------------------------
+
+    if (summaries.length > 1) {
+      const combinedSummary =
         finalSummary.slice(
           0,
           CHUNK_SIZE,
@@ -788,24 +747,24 @@ export async function POST(
       try {
         finalSummary =
           await summarizeText(
-            combined,
-            hfToken,
+            combinedSummary,
+            hf,
           );
-      } catch (finalSummaryError) {
+
+        finalSummary =
+          finalSummary
+            .replace(/\s+/g, " ")
+            .trim();
+      } catch (error) {
         console.warn(
-          "Final summary pass failed; using chunk summaries instead:",
-          finalSummaryError,
+          "Final summary pass failed. Using combined chunk summaries.",
+          error,
         );
       }
     }
 
-    finalSummary =
-      finalSummary
-        .replace(/\s+/g, " ")
-        .trim();
-
     // -----------------------------------------
-    // SAVE RESULT
+    // SAVE AI SUMMARY
     // -----------------------------------------
 
     document.aiSummary =
@@ -837,7 +796,7 @@ export async function POST(
     );
 
     // -----------------------------------------
-    // MARK AI PROCESSING AS FAILED
+    // MARK FAILED
     // -----------------------------------------
 
     if (documentId) {
@@ -852,7 +811,7 @@ export async function POST(
         );
       } catch (statusError) {
         console.error(
-          "Failed to mark AI summary as FAILED:",
+          "Failed to update AI status:",
           statusError,
         );
       }
