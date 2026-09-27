@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import DocumentModel from "@/models/Document";
@@ -22,7 +23,7 @@ type ScoredDocument = {
   score: number;
 };
 
-function normalize(value: unknown) {
+function normalize(value: unknown): string {
   return String(value ?? "")
     .toLowerCase()
     .replace(/[^\w\s-]/g, " ")
@@ -30,7 +31,7 @@ function normalize(value: unknown) {
     .trim();
 }
 
-function tokenize(value: string) {
+function tokenize(value: string): string[] {
   return normalize(value)
     .split(" ")
     .filter((word) => word.length >= 3);
@@ -47,7 +48,7 @@ function calculateScore(
     aiSummary?: string;
     fileName?: string;
   },
-) {
+): number {
   const title = tokenize(document.title || "");
   const description = tokenize(document.description || "");
   const region = tokenize(document.region || "");
@@ -59,13 +60,33 @@ function calculateScore(
   let score = 0;
 
   for (const token of questionTokens) {
-    if (title.includes(token)) score += 12;
-    if (tags.includes(token)) score += 9;
-    if (region.includes(token)) score += 7;
-    if (contentType.includes(token)) score += 5;
-    if (aiSummary.includes(token)) score += 5;
-    if (description.includes(token)) score += 4;
-    if (fileName.includes(token)) score += 3;
+    if (title.includes(token)) {
+      score += 12;
+    }
+
+    if (tags.includes(token)) {
+      score += 9;
+    }
+
+    if (region.includes(token)) {
+      score += 7;
+    }
+
+    if (contentType.includes(token)) {
+      score += 5;
+    }
+
+    if (aiSummary.includes(token)) {
+      score += 5;
+    }
+
+    if (description.includes(token)) {
+      score += 4;
+    }
+
+    if (fileName.includes(token)) {
+      score += 3;
+    }
   }
 
   return score;
@@ -145,7 +166,7 @@ export async function POST(request: Request) {
         year: document.year,
         description: document.description || "",
         tags: Array.isArray(document.tags)
-          ? document.tags.map((tag) => String(tag))
+          ? document.tags.map((tag: unknown) => String(tag))
           : [],
         aiSummary: document.aiSummary || "",
         fileUrl: document.fileUrl || "",
@@ -318,3 +339,4 @@ ${context}
     );
   }
 }
+

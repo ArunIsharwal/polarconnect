@@ -2,6 +2,12 @@ import { repositoryItems } from "@/data/mockData";
 import RepositoryRow from "./RepositoryRow";
 
 export default function RepositoryTable() {
+  const tableItems = repositoryItems.map((item) => ({
+    ...item,
+    fileName: "",
+    fileUrl: "",
+  }));
+
   return (
     <section className="border border-neutral-200">
       <div className="flex flex-col gap-3 border-b border-neutral-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -16,11 +22,11 @@ export default function RepositoryTable() {
         </div>
 
         <div className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
-          {repositoryItems.length} RECORDS
+          {tableItems.length} RECORDS
         </div>
       </div>
 
-      {repositoryItems.map((item) => (
+      {tableItems.map((item) => (
         <RepositoryRow key={item.id} item={item} />
       ))}
     </section>

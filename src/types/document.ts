@@ -7,7 +7,10 @@ export type DocumentType =
 export type DocumentStatus =
   | "PUBLISHED"
   | "REVIEW"
-  | "PROCESSING";
+  | "PROCESSING"
+  | "APPROVED"
+  | "PENDING"
+  | "REJECTED";
 
 export type PolarDocument = {
   id: string;
