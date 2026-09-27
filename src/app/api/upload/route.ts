@@ -258,6 +258,8 @@
 //     );
 //   }
 // }
+
+
 import {
   handleUpload,
   type HandleUploadBody,
@@ -270,6 +272,8 @@ import connectDB from "@/lib/mongodb";
 import DocumentModel from "@/models/Document";
 
 import { auth } from "../../../../auth";
+
+export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
@@ -316,7 +320,9 @@ function parseClientPayload(
   clientPayload: string | null | undefined,
 ): UploadMetadata {
   if (!clientPayload) {
-    throw new Error("Upload metadata is missing");
+    throw new Error(
+      "Upload metadata is missing",
+    );
   }
 
   let value: unknown;
@@ -324,14 +330,18 @@ function parseClientPayload(
   try {
     value = JSON.parse(clientPayload);
   } catch {
-    throw new Error("Upload metadata is invalid");
+    throw new Error(
+      "Upload metadata is invalid",
+    );
   }
 
   if (
     typeof value !== "object" ||
     value === null
   ) {
-    throw new Error("Upload metadata is invalid");
+    throw new Error(
+      "Upload metadata is invalid",
+    );
   }
 
   const data =
@@ -359,7 +369,9 @@ function parseClientPayload(
 
   const tags = Array.isArray(data.tags)
     ? data.tags
-        .map((tag) => String(tag).trim())
+        .map((tag) =>
+          String(tag).trim(),
+        )
         .filter(Boolean)
         .slice(0, 20)
     : [];
@@ -374,11 +386,15 @@ function parseClientPayload(
       : Number(rawYear);
 
   if (!fileName) {
-    throw new Error("File name is required");
+    throw new Error(
+      "File name is required",
+    );
   }
 
   if (!title) {
-    throw new Error("Title is required");
+    throw new Error(
+      "Title is required",
+    );
   }
 
   if (
@@ -391,17 +407,27 @@ function parseClientPayload(
     );
   }
 
+  if (!region) {
+    throw new Error(
+      "Region is required",
+    );
+  }
+
   if (
     year !== undefined &&
     (!Number.isInteger(year) ||
       year < 1900 ||
       year > 2100)
   ) {
-    throw new Error("Invalid year");
+    throw new Error(
+      "Invalid year",
+    );
   }
 
   if (title.length > 200) {
-    throw new Error("Title is too long");
+    throw new Error(
+      "Title is too long",
+    );
   }
 
   if (description.length > 5000) {
@@ -426,35 +452,11 @@ export async function POST(
 ) {
   try {
     // -----------------------------------------
-    // ADMIN AUTHENTICATION
-    // -----------------------------------------
-
-    const session = await auth();
-
-    if (
-      !session?.user?.email ||
-      session.user.email !==
-        process.env.ADMIN_EMAIL
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Unauthorized",
-        },
-        { status: 401 },
-      );
-    }
-
-    // -----------------------------------------
-    // READ VERCEL BLOB CLIENT UPLOAD REQUEST
+    // READ BLOB CLIENT UPLOAD REQUEST
     // -----------------------------------------
 
     const body =
       (await request.json()) as HandleUploadBody;
-
-    // -----------------------------------------
-    // HANDLE VERCEL BLOB UPLOAD
-    // -----------------------------------------
 
     const jsonResponse =
       await handleUpload({
@@ -462,17 +464,24 @@ export async function POST(
         request,
 
         // ---------------------------------------
-        // GENERATE CLIENT UPLOAD TOKEN
+        // AUTHENTICATE BEFORE GENERATING TOKEN
         // ---------------------------------------
 
         onBeforeGenerateToken: async (
           pathname,
           clientPayload,
         ) => {
-          const metadata =
-            parseClientPayload(
-              clientPayload,
+          const session = await auth();
+
+          if (
+            !session?.user?.email ||
+            session.user.email !==
+              process.env.ADMIN_EMAIL
+          ) {
+            throw new Error(
+              "Unauthorized",
             );
+          }
 
           const extension =
             path
@@ -488,6 +497,11 @@ export async function POST(
               `File type ${extension} is not supported`,
             );
           }
+
+          const metadata =
+            parseClientPayload(
+              clientPayload,
+            );
 
           const expectedMimeType =
             MIME_TYPES[extension];
@@ -519,7 +533,12 @@ export async function POST(
         },
 
         // ---------------------------------------
-        // AFTER VERCEL BLOB UPLOAD
+        // BLOB UPLOAD COMPLETION
+        // ---------------------------------------
+        // IMPORTANT:
+        // Do NOT call auth() here.
+        // This callback is invoked by Vercel
+        // Blob after the upload completes.
         // ---------------------------------------
 
         onUploadCompleted: async ({
@@ -527,6 +546,11 @@ export async function POST(
           tokenPayload,
         }) => {
           try {
+            console.log(
+              "Blob upload completed:",
+              blob.url,
+            );
+
             const metadata =
               parseClientPayload(
                 tokenPayload,
@@ -534,9 +558,8 @@ export async function POST(
 
             await connectDB();
 
-            // Prevent duplicate MongoDB
-            // records if Vercel retries
-            // the completion callback.
+            // Prevent duplicate records if
+            // the completion callback is retried.
             const existing =
               await DocumentModel.findOne({
                 fileUrl: blob.url,
@@ -550,10 +573,6 @@ export async function POST(
 
               return;
             }
-
-            // -----------------------------------
-            // SAVE DOCUMENT METADATA
-            // -----------------------------------
 
             const document =
               await DocumentModel.create({
@@ -572,15 +591,12 @@ export async function POST(
               });
 
             console.log(
-              "Blob upload completed:",
-              {
-                id: document._id.toString(),
-                fileUrl: blob.url,
-              },
+              "MongoDB document created:",
+              document._id.toString(),
             );
           } catch (error) {
             console.error(
-              "Failed to save uploaded document:",
+              "Failed to create MongoDB document after Blob upload:",
               error,
             );
 

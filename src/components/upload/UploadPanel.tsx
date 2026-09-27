@@ -805,19 +805,13 @@ export default function UploadPanel() {
       setProgress(98);
       setStatus("PROCESSING");
 
-      /*
-       * The Vercel Blob onUploadCompleted
-       * callback creates the MongoDB document.
-       *
-       * A short delay gives the completion
-       * callback time to finish before the UI
-       * displays the final state.
-       */
+      // The Vercel Blob completion callback
+      // creates the MongoDB record.
       await new Promise(
         (resolve) =>
           setTimeout(
             resolve,
-            1500,
+            2000,
           ),
       );
 
