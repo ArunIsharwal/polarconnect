@@ -162,7 +162,7 @@ export default function DatasetsPage() {
         </div>
 
         {/* SEARCH */}
-        <div className="border-b border-neutral-200 p-4">
+        {/* <div className="border-b border-neutral-200 p-4">
           <label className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
             Search datasets
           </label>
@@ -176,7 +176,7 @@ export default function DatasetsPage() {
             placeholder="Search title, region, tags or filename..."
             className="mt-2 h-10 w-full border border-neutral-200 px-3 text-sm outline-none focus:border-black"
           />
-        </div>
+        </div> */}
 
         {/* STATUS */}
         <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">

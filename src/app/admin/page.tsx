@@ -47,6 +47,7 @@
 import Link from "next/link";
 import {
   CheckCircle2,
+  Database,
   FileText,
   Image as ImageIcon,
 } from "lucide-react";
@@ -64,10 +65,15 @@ export default function AdminPage() {
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">
             Administration
           </h1>
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
+            Manage scientific documents, datasets, media and
+            publication approvals.
+          </p>
         </div>
 
         {/* ADMIN OPTIONS */}
-        <div className="grid gap-px bg-neutral-200 md:grid-cols-3">
+        <div className="grid gap-px bg-neutral-200 md:grid-cols-2 xl:grid-cols-4">
           {/* DOCUMENT MANAGEMENT */}
           <Link
             href="/admin/documents"
@@ -84,13 +90,39 @@ export default function AdminPage() {
                 </h2>
 
                 <p className="mt-1 text-xs leading-5 text-neutral-500">
-                  Upload and inspect repository records.
+                  Upload research papers and scientific records.
                 </p>
               </div>
             </div>
 
             <div className="mt-5 font-mono text-[9px] uppercase tracking-widest text-neutral-400">
               Open documents →
+            </div>
+          </Link>
+
+          {/* DATASET UPLOAD */}
+          <Link
+            href="/admin/documents"
+            className="bg-white p-5 transition-colors hover:bg-neutral-50"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 items-center justify-center border border-neutral-200">
+                <Database className="h-4 w-4 stroke-[1.5]" />
+              </div>
+
+              <div>
+                <h2 className="text-sm font-semibold">
+                  Dataset Upload
+                </h2>
+
+                <p className="mt-1 text-xs leading-5 text-neutral-500">
+                  Upload datasets and select DATASET as content type.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 font-mono text-[9px] uppercase tracking-widest text-neutral-400">
+              Upload dataset →
             </div>
           </Link>
 
@@ -110,7 +142,7 @@ export default function AdminPage() {
                 </h2>
 
                 <p className="mt-1 text-xs leading-5 text-neutral-500">
-                  Review content before publication.
+                  Review and approve content before publication.
                 </p>
               </div>
             </div>
