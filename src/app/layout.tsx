@@ -20,7 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <div className="min-h-screen bg-white text-black">
-          <div className="grid min-h-screen lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="grid min-h-screen lg:grid-cols-[232px_minmax(0,1fr)] 2xl:grid-cols-[248px_minmax(0,1fr)]">
             <Sidebar />
 
             <div className="min-w-0">

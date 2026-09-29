@@ -33,7 +33,7 @@ export default function MobileNav() {
           <Link
             key={link.href}
             href={link.href}
-            className={`flex h-14 flex-col items-center justify-center gap-1 ${
+            className={`flex h-14 flex-col items-center justify-center gap-1 transition-colors hover:bg-neutral-50 ${
               active ? "text-black" : "text-neutral-400"
             }`}
           >

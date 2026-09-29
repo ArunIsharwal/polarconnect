@@ -162,7 +162,7 @@ export default function Sidebar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex h-9 items-center gap-3 rounded-sm px-2 text-sm transition-colors ${
+                className={`flex h-10 items-center gap-3 rounded-sm px-2 text-sm transition-colors ${
                   active
                     ? "bg-black text-white"
                     : "text-neutral-600 hover:bg-neutral-100 hover:text-black"
@@ -210,7 +210,7 @@ export default function Sidebar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex h-9 items-center gap-3 rounded-sm px-2 text-sm transition-colors ${
+                className={`flex h-10 items-center gap-3 rounded-sm px-2 text-sm transition-colors ${
                   active
                     ? "bg-black text-white"
                     : "text-neutral-600 hover:bg-neutral-100 hover:text-black"
@@ -231,7 +231,7 @@ export default function Sidebar() {
 
         <Link
           href="/admin"
-          className={`flex h-9 items-center gap-3 rounded-sm px-2 text-sm transition-colors ${
+          className={`flex h-10 items-center gap-3 rounded-sm px-2 text-sm transition-colors ${
             pathname === "/admin" ||
             pathname.startsWith("/admin/")
               ? "bg-neutral-100 text-black"

@@ -27,7 +27,7 @@ export function CommandSearch() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex h-9 min-w-0 flex-1 items-center border border-neutral-200 bg-white px-3 sm:max-w-xl"
+      className="flex h-10 min-w-0 flex-1 items-center border border-neutral-200 bg-white px-3 transition-colors focus-within:border-neutral-500 sm:max-w-xl"
     >
       <Search className="mr-2 h-4 w-4 shrink-0 stroke-[1.5] text-neutral-400" />
 

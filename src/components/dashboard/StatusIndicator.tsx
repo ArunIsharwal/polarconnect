@@ -15,8 +15,8 @@ export default function StatusIndicator({
         : "bg-neutral-400";
 
   return (
-    <span className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-neutral-500">
-      <span className={`h-1 w-1 animate-pulse ${dot}`} />
+    <span className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-neutral-600">
+      <span className={`h-1.5 w-1.5 animate-pulse ${dot}`} />
       {label}
     </span>
   );

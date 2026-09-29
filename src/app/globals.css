@@ -21,6 +21,38 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+@layer utilities {
+  .text-xs {
+    font-size: 0.8125rem;
+  }
+
+  .text-sm {
+    font-size: 0.9375rem;
+  }
+
+  .text-2xl {
+    font-size: 1.625rem;
+  }
+
+  .text-3xl {
+    font-size: 2rem;
+  }
+
+  [class~="text-[9px]"] {
+    font-size: 0.625rem;
+  }
+
+  [class~="text-[8px]"] {
+    font-size: 0.5625rem;
+  }
+
+  .text-neutral-400 {
+    color: #737373;
+  }
 }
 
 button,
@@ -32,6 +64,11 @@ textarea {
 
 button {
   cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid #171717;
+  outline-offset: 2px;
 }
 
 ::selection {

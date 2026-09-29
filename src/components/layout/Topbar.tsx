@@ -16,7 +16,7 @@ export default function Topbar() {
 
         <Link
           href="/admin/documents"
-          className="inline-flex h-8 items-center gap-2 rounded-sm border border-neutral-200 px-3 text-xs font-medium hover:bg-neutral-50"
+          className="inline-flex h-9 items-center gap-2 rounded-sm border border-neutral-200 px-3 text-xs font-medium transition-colors hover:bg-neutral-50"
         >
           <Upload className="h-4 w-4 stroke-[1.5]" />
           Upload

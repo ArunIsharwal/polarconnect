@@ -19,7 +19,7 @@ export default function MetricCard({
         {value}
       </div>
 
-      <div className="mt-2 font-mono text-[9px] uppercase tracking-widest text-neutral-400">
+      <div className="mt-2 font-mono text-[9px] uppercase tracking-widest text-neutral-500">
         {detail}
       </div>
     </div>
