@@ -1,45 +1,152 @@
+// import Link from "next/link";
+
+// export default function AdminPage() {
+//   return (
+//     <div className="p-4 sm:p-6">
+//       <section className="border border-neutral-200 p-6">
+//         <div className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
+//           ADMIN / CONTROL CENTER
+//         </div>
+
+//         <h1 className="mt-4 text-3xl font-bold tracking-tight">
+//           Administration
+//         </h1>
+
+//         <div className="mt-6 grid gap-3 sm:grid-cols-2">
+//           <Link
+//             href="/admin/documents"
+//             className="border border-neutral-200 p-4 hover:bg-neutral-50"
+//           >
+//             <div className="text-sm font-semibold">
+//               Document Management
+//             </div>
+
+//             <p className="mt-2 text-xs leading-5 text-neutral-500">
+//               Upload and inspect repository records.
+//             </p>
+//           </Link>
+
+//           <Link
+//             href="/admin/approvals"
+//             className="border border-neutral-200 p-4 hover:bg-neutral-50"
+//           >
+//             <div className="text-sm font-semibold">
+//               Approval Queue
+//             </div>
+
+//             <p className="mt-2 text-xs leading-5 text-neutral-500">
+//               Review content before publication.
+//             </p>
+//           </Link>
+//         </div>
+//       </section>
+//     </div>
+//   );
+// }
+
 import Link from "next/link";
+import {
+  CheckCircle2,
+  FileText,
+  Image as ImageIcon,
+} from "lucide-react";
 
 export default function AdminPage() {
   return (
-    <div className="p-4 sm:p-6">
-      <section className="border border-neutral-200 p-6">
-        <div className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
-          ADMIN / CONTROL CENTER
+    <main className="min-h-screen">
+      <div className="border border-neutral-200">
+        {/* HEADER */}
+        <div className="border-b border-neutral-200 px-6 py-6">
+          <div className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
+            ADMIN / CONTROL CENTER
+          </div>
+
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+            Administration
+          </h1>
         </div>
 
-        <h1 className="mt-4 text-3xl font-bold tracking-tight">
-          Administration
-        </h1>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        {/* ADMIN OPTIONS */}
+        <div className="grid gap-px bg-neutral-200 md:grid-cols-3">
+          {/* DOCUMENT MANAGEMENT */}
           <Link
             href="/admin/documents"
-            className="border border-neutral-200 p-4 hover:bg-neutral-50"
+            className="bg-white p-5 transition-colors hover:bg-neutral-50"
           >
-            <div className="text-sm font-semibold">
-              Document Management
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 items-center justify-center border border-neutral-200">
+                <FileText className="h-4 w-4 stroke-[1.5]" />
+              </div>
+
+              <div>
+                <h2 className="text-sm font-semibold">
+                  Document Management
+                </h2>
+
+                <p className="mt-1 text-xs leading-5 text-neutral-500">
+                  Upload and inspect repository records.
+                </p>
+              </div>
             </div>
 
-            <p className="mt-2 text-xs leading-5 text-neutral-500">
-              Upload and inspect repository records.
-            </p>
+            <div className="mt-5 font-mono text-[9px] uppercase tracking-widest text-neutral-400">
+              Open documents →
+            </div>
           </Link>
 
+          {/* APPROVAL QUEUE */}
           <Link
             href="/admin/approvals"
-            className="border border-neutral-200 p-4 hover:bg-neutral-50"
+            className="bg-white p-5 transition-colors hover:bg-neutral-50"
           >
-            <div className="text-sm font-semibold">
-              Approval Queue
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 items-center justify-center border border-neutral-200">
+                <CheckCircle2 className="h-4 w-4 stroke-[1.5]" />
+              </div>
+
+              <div>
+                <h2 className="text-sm font-semibold">
+                  Approval Queue
+                </h2>
+
+                <p className="mt-1 text-xs leading-5 text-neutral-500">
+                  Review content before publication.
+                </p>
+              </div>
             </div>
 
-            <p className="mt-2 text-xs leading-5 text-neutral-500">
-              Review content before publication.
-            </p>
+            <div className="mt-5 font-mono text-[9px] uppercase tracking-widest text-neutral-400">
+              Review records →
+            </div>
+          </Link>
+
+          {/* MEDIA MANAGEMENT */}
+          <Link
+            href="/admin/media"
+            className="bg-white p-5 transition-colors hover:bg-neutral-50"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 items-center justify-center border border-neutral-200">
+                <ImageIcon className="h-4 w-4 stroke-[1.5]" />
+              </div>
+
+              <div>
+                <h2 className="text-sm font-semibold">
+                  Media Management
+                </h2>
+
+                <p className="mt-1 text-xs leading-5 text-neutral-500">
+                  Upload polar images and manage media metadata.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 font-mono text-[9px] uppercase tracking-widest text-neutral-400">
+              Upload media →
+            </div>
           </Link>
         </div>
-      </section>
-    </div>
+      </div>
+    </main>
   );
 }
