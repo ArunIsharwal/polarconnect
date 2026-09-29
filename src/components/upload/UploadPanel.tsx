@@ -95,9 +95,9 @@ export default function UploadPanel() {
   const [error, setError] =
     useState("");
 
-  // -----------------------------------------
+  // --------------------------------------------------
   // FILE SELECTION
-  // -----------------------------------------
+  // --------------------------------------------------
 
   function handleFile(
     selectedFile: File,
@@ -116,8 +116,7 @@ export default function UploadPanel() {
     ) {
       setError(
         `File type ${
-          extension ||
-          "unknown"
+          extension || "unknown"
         } is not supported.`,
       );
 
@@ -172,9 +171,9 @@ export default function UploadPanel() {
     }
   }
 
-  // -----------------------------------------
+  // --------------------------------------------------
   // CLEAR
-  // -----------------------------------------
+  // --------------------------------------------------
 
   function clearFile() {
     setFile(null);
@@ -190,9 +189,9 @@ export default function UploadPanel() {
     }
   }
 
-  // -----------------------------------------
-  // MAIN UPLOAD
-  // -----------------------------------------
+  // --------------------------------------------------
+  // UPLOAD
+  // --------------------------------------------------
 
   async function uploadDocument() {
     if (!file) {
@@ -241,15 +240,15 @@ export default function UploadPanel() {
     }
 
     setError("");
+    setProgress(0);
     setStatus(
       "UPLOADING",
     );
-    setProgress(0);
 
     try {
-      // ---------------------------------------
+      // ------------------------------------------------
       // SAFE FILE NAME
-      // ---------------------------------------
+      // ------------------------------------------------
 
       const safeFileName =
         file.name
@@ -266,16 +265,22 @@ export default function UploadPanel() {
             180,
           );
 
-      // ---------------------------------------
+      // ------------------------------------------------
       // UNIQUE BLOB PATH
-      // ---------------------------------------
+      // ------------------------------------------------
 
       const pathname =
         `documents/${crypto.randomUUID()}-${safeFileName}`;
 
-      // ---------------------------------------
-      // UPLOAD FILE TO VERCEL BLOB
-      // ---------------------------------------
+      // ------------------------------------------------
+      // DIRECT CLIENT UPLOAD TO VERCEL BLOB
+      //
+      // IMPORTANT:
+      // NO multipart: true
+      // NO clientPayload JSON
+      //
+      // This removes the JSON parsing problem.
+      // ------------------------------------------------
 
       const blob =
         await upload(
@@ -285,11 +290,11 @@ export default function UploadPanel() {
             access:
               "public",
 
+            contentType:
+              mimeType,
+
             handleUploadUrl:
               "/api/upload",
-
-            multipart:
-              true,
 
             onUploadProgress:
               (event) => {
@@ -303,28 +308,23 @@ export default function UploadPanel() {
         );
 
       console.log(
-        "Vercel Blob upload successful:",
+        "Blob upload successful:",
         blob.url,
       );
 
-      // ---------------------------------------
-      // BLOB SUCCESS
-      // ---------------------------------------
-
       setProgress(95);
-
       setStatus(
         "PROCESSING",
       );
 
-      // ---------------------------------------
-      // SAVE METADATA IN MONGODB
+      // ------------------------------------------------
+      // SAVE METADATA IN EXISTING MONGODB API
       //
-      // Uses your EXISTING /api/documents
-      // endpoint.
+      // IMPORTANT:
+      // contentType = REPORT / DATASET / PUBLICATION / MEDIA
       //
-      // This endpoint is already admin-only.
-      // ---------------------------------------
+      // NOT MIME TYPE.
+      // ------------------------------------------------
 
       const databaseResponse =
         await fetch(
@@ -391,7 +391,7 @@ export default function UploadPanel() {
       ) {
         throw new Error(
           databaseResult.message ||
-            "File uploaded, but the scientific record could not be saved.",
+            "File uploaded but metadata could not be saved.",
         );
       }
 
@@ -400,9 +400,9 @@ export default function UploadPanel() {
         databaseResult.document,
       );
 
-      // ---------------------------------------
+      // ------------------------------------------------
       // COMPLETE
-      // ---------------------------------------
+      // ------------------------------------------------
 
       setProgress(
         100,
@@ -411,19 +411,19 @@ export default function UploadPanel() {
       setStatus(
         "COMPLETE",
       );
-    } catch (uploadError) {
+    } catch (error) {
       console.error(
         "Upload error:",
-        uploadError,
+        error,
       );
 
-      setStatus("IDLE");
       setProgress(0);
+      setStatus("IDLE");
 
       setError(
-        uploadError instanceof
+        error instanceof
           Error
-          ? uploadError.message
+          ? error.message
           : "Something went wrong while uploading the file.",
       );
     }
@@ -435,7 +435,6 @@ export default function UploadPanel() {
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
       <section className="border border-neutral-200">
-        {/* HEADER */}
         <div className="border-b border-neutral-200 px-4 py-4">
           <div className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
             INGEST / NEW SCIENTIFIC RECORD
@@ -447,7 +446,6 @@ export default function UploadPanel() {
         </div>
 
         <div className="p-4 sm:p-6">
-          {/* FILE INPUT */}
           <input
             ref={
               fileInputRef
@@ -460,7 +458,6 @@ export default function UploadPanel() {
             className="hidden"
           />
 
-          {/* FILE SELECT */}
           {!file ? (
             <button
               type="button"
@@ -537,7 +534,6 @@ export default function UploadPanel() {
             </div>
           )}
 
-          {/* TITLE */}
           <div className="mt-6">
             <label className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
               Title
@@ -555,7 +551,6 @@ export default function UploadPanel() {
             />
           </div>
 
-          {/* TYPE / REGION / YEAR */}
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <Field
               label="Content type"
@@ -607,7 +602,6 @@ export default function UploadPanel() {
             />
           </div>
 
-          {/* DESCRIPTION */}
           <div className="mt-5">
             <label className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
               Description
@@ -628,7 +622,6 @@ export default function UploadPanel() {
             />
           </div>
 
-          {/* TAGS */}
           <div className="mt-5">
             <label className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
               Tags
@@ -650,7 +643,6 @@ export default function UploadPanel() {
             </p>
           </div>
 
-          {/* ERROR */}
           {error && (
             <div className="mt-4 border border-red-200 bg-red-50 px-3 py-3 text-xs text-red-700">
               {
@@ -659,7 +651,6 @@ export default function UploadPanel() {
             </div>
           )}
 
-          {/* PROGRESS */}
           {status !==
             "IDLE" && (
             <div className="mt-6">
@@ -680,7 +671,6 @@ export default function UploadPanel() {
             </div>
           )}
 
-          {/* BUTTONS */}
           <div className="mt-6 flex flex-wrap gap-2">
             <button
               type="button"
@@ -727,7 +717,6 @@ export default function UploadPanel() {
         </div>
       </section>
 
-      {/* RIGHT SIDE PIPELINE */}
       <aside className="border border-neutral-200">
         <div className="border-b border-neutral-200 px-4 py-4">
           <div className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">

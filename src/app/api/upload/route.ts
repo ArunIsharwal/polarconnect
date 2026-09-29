@@ -24,12 +24,11 @@ export async function POST(
   request: Request,
 ) {
   try {
-    // -----------------------------------------
+    // --------------------------------------------------
     // ADMIN AUTHENTICATION
-    // -----------------------------------------
+    // --------------------------------------------------
 
-    const session =
-      await auth();
+    const session = await auth();
 
     if (
       !session?.user?.email ||
@@ -39,8 +38,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Unauthorized",
+          message: "Unauthorized",
         },
         {
           status: 401,
@@ -48,14 +46,14 @@ export async function POST(
       );
     }
 
-    // -----------------------------------------
-    // BLOB TOKEN
-    // -----------------------------------------
+    // --------------------------------------------------
+    // CHECK BLOB TOKEN
+    // --------------------------------------------------
 
-    const token =
-      process.env.BLOB_READ_WRITE_TOKEN;
-
-    if (!token) {
+    if (
+      !process.env
+        .BLOB_READ_WRITE_TOKEN
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -68,30 +66,25 @@ export async function POST(
       );
     }
 
-    // -----------------------------------------
-    // IMPORTANT
+    // --------------------------------------------------
+    // VERCEL BLOB CLIENT UPLOAD
     //
-    // @vercel/blob/client sends JSON here.
-    // This endpoint is NOT a normal FormData
-    // upload endpoint.
-    // -----------------------------------------
+    // IMPORTANT:
+    // This request is JSON from @vercel/blob/client.
+    // Do NOT use request.formData().
+    // --------------------------------------------------
 
     const body =
       (await request.json()) as HandleUploadBody;
 
-    // -----------------------------------------
-    // HANDLE VERCEL BLOB CLIENT UPLOAD
-    // -----------------------------------------
-
     const jsonResponse =
       await handleUpload({
-        token,
-        request,
         body,
+        request,
 
-        // ---------------------------------------
-        // GENERATE CLIENT UPLOAD TOKEN
-        // ---------------------------------------
+        // ------------------------------------------------
+        // GENERATE CLIENT TOKEN
+        // ------------------------------------------------
 
         onBeforeGenerateToken:
           async () => {
@@ -107,19 +100,13 @@ export async function POST(
             };
           },
 
-        // ---------------------------------------
-        // UPLOAD COMPLETION
+        // ------------------------------------------------
+        // COMPLETION CALLBACK
         //
-        // IMPORTANT:
-        // MongoDB is NOT written here.
-        //
-        // The browser saves the database record
-        // through the existing /api/documents
-        // endpoint after Blob upload succeeds.
-        //
-        // This avoids duplicate records and
-        // callback metadata parsing problems.
-        // ---------------------------------------
+        // MongoDB is intentionally NOT handled here.
+        // The client saves metadata through the existing
+        // /api/documents route after Blob upload succeeds.
+        // ------------------------------------------------
 
         onUploadCompleted:
           async ({
