@@ -754,21 +754,45 @@ export default function UploadPanel() {
       const pathname =
         `documents/${crypto.randomUUID()}-${safeFileName}`;
 
+      // const metadata = {
+      //   fileName: file.name,
+      //   title: title.trim(),
+      //   contentType: mimeType,
+      //   region,
+      //   year,
+      //   description:
+      //     description.trim(),
+      //   tags: tags
+      //     .split(",")
+      //     .map(
+      //       (tag) => tag.trim(),
+      //     )
+      //     .filter(Boolean),
+      // };
+
       const metadata = {
-        fileName: file.name,
-        title: title.trim(),
-        contentType: mimeType,
-        region,
-        year,
-        description:
-          description.trim(),
-        tags: tags
-          .split(",")
-          .map(
-            (tag) => tag.trim(),
-          )
-          .filter(Boolean),
-      };
+  fileName: file.name,
+  title: title.trim(),
+
+  // IMPORTANT:
+  // This is the repository record type:
+  // REPORT / DATASET / PUBLICATION / MEDIA
+  contentType: type,
+
+  // Keep the actual file MIME type separately.
+  mimeType,
+
+  region,
+  year,
+  description:
+    description.trim(),
+  tags: tags
+    .split(",")
+    .map(
+      (tag) => tag.trim(),
+    )
+    .filter(Boolean),
+};
 
       const blob = await upload(
         pathname,
