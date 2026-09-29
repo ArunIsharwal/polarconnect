@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import {
   Check,
   Image as ImageIcon,
@@ -121,61 +122,53 @@ export default function MediaUploadPanel() {
     setStatus("UPLOADING");
 
     try {
-      const formData =
-        new FormData();
+      const safeFileName =
+        file.name
+          .replace(
+            /[^a-zA-Z0-9._-]/g,
+            "-",
+          )
+          .replace(/-+/g, "-")
+          .slice(0, 180);
 
-      formData.append(
-        "file",
+      const blob = await upload(
+        `media/${crypto.randomUUID()}-${safeFileName}`,
         file,
+        {
+          access: "public",
+          contentType:
+            file.type === "image/jpg"
+              ? "image/jpeg"
+              : file.type,
+          handleUploadUrl: "/api/upload",
+        },
       );
 
-      formData.append(
-        "title",
-        title.trim(),
-      );
-
-      // IMPORTANT:
-      // This tells the existing upload
-      // API that this record belongs
-      // to the Media section.
-      formData.append(
-        "contentType",
-        "MEDIA",
-      );
-
-      formData.append(
-        "region",
-        region,
-      );
-
-      formData.append(
-        "year",
-        year,
-      );
-
-      formData.append(
-        "description",
-        description.trim(),
-      );
-
-      formData.append(
-        "tags",
-        tags,
-      );
-
-      const response =
-        await fetch(
-          "/api/upload",
-          {
-            method: "POST",
-            body: formData,
-            credentials:
-              "include",
+      const response = await fetch(
+        "/api/documents",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        );
+          credentials: "include",
+          body: JSON.stringify({
+            title: title.trim(),
+            contentType: "MEDIA",
+            region,
+            year: Number(year),
+            description: description.trim(),
+            tags: tags
+              .split(",")
+              .map((tag) => tag.trim())
+              .filter(Boolean),
+            fileName: file.name,
+            fileUrl: blob.url,
+          }),
+        },
+      );
 
-      const result =
-        await response.json();
+      const result = await response.json();
 
       if (
         !response.ok ||
@@ -183,7 +176,7 @@ export default function MediaUploadPanel() {
       ) {
         throw new Error(
           result.message ||
-            "Image upload failed.",
+            "Image uploaded but metadata could not be saved.",
         );
       }
 
